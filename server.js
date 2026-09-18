@@ -15,7 +15,6 @@ Object.assign(wisp.options, {
   allow_private_ips: false,
   allow_loopback_ips: false,
   allow_direct_ip: false,
-  stream_limit_per_host: 24,
   stream_limit_total: 64,
   port_whitelist: [80, 443],
   // This deployment supports the requested sites, not arbitrary TCP destinations.
