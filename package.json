@@ -1,17 +1,8 @@
 {
-  "name": "simple-web-proxy",
-  "version": "2.0.0",
+  "name": "vennela-farming",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "license": "AGPL-3.0-only",
-  "engines": { "node": ">=22" },
   "scripts": { "start": "node server.js" },
-  "dependencies": {
-    "fastify": "5.7.4",
-    "@fastify/static": "9.0.0",
-    "@mercuryworkshop/bare-mux": "2.1.9",
-    "@mercuryworkshop/libcurl-transport": "1.5.2",
-    "@mercuryworkshop/scramjet": "https://github.com/MercuryWorkshop/scramjet/releases/download/v1.1.0/mercuryworkshop-scramjet-1.1.0.tgz",
-    "@mercuryworkshop/wisp-js": "0.4.1"
-  }
+  "engines": { "node": ">=22" }
 }

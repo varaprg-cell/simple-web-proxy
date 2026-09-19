@@ -1,51 +1,35 @@
-// Based on MercuryWorkshop/Scramjet-App (AGPL-3.0); see LICENSE.
-import { createServer } from 'node:http';
-import { fileURLToPath } from 'node:url';
-import { server as wisp, logging } from '@mercuryworkshop/wisp-js/server';
-import Fastify from 'fastify';
-import fastifyStatic from '@fastify/static';
-import { scramjetPath } from '@mercuryworkshop/scramjet/path';
-import { libcurlPath } from '@mercuryworkshop/libcurl-transport';
-import { baremuxPath } from '@mercuryworkshop/bare-mux/node';
+import http from 'node:http';
+import { readFileSync } from 'node:fs';
 
-const root = fileURLToPath(new URL('.', import.meta.url));
-logging.set_level(logging.NONE);
-Object.assign(wisp.options, {
-  allow_udp_streams: false,
-  allow_private_ips: false,
-  allow_loopback_ips: false,
-  allow_direct_ip: false,
-  stream_limit_total: 64,
-  port_whitelist: [80, 443],
-  // This deployment supports the requested sites, not arbitrary TCP destinations.
-  hostname_whitelist: [/^(?:[a-z0-9-]+\.)*(?:google\.com|gstatic\.com|googleusercontent\.com|googleapis\.com|youtube\.com|youtube-nocookie\.com|youtu\.be|ytimg\.com|googlevideo\.com|ggpht\.com|example\.com)$/i],
+const page = readFileSync(new URL('./index.html', import.meta.url));
+const retiredWorker = readFileSync(new URL('./sw.js', import.meta.url));
+const server = http.createServer((req, res) => {
+  const path = new URL(req.url, 'http://localhost').pathname;
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-cache');
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    return res.end();
+  }
+  let body;
+  if (path === '/' || path === '/index.html') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    body = page;
+  } else if (path === '/health') {
+    res.setHeader('Content-Type', 'application/json');
+    body = '{"status":"ok","site":"Vennela Farming"}';
+  } else if (path === '/sw.js') {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    body = retiredWorker;
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    body = 'Not found';
+  }
+  res.end(req.method === 'HEAD' ? undefined : body);
 });
-
-const app = Fastify({
-  serverFactory: handler => createServer((req, res) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    handler(req, res);
-  }).on('upgrade', (req, socket, head) => {
-    if (req.url !== '/wisp/') { socket.destroy(); return; }
-    let origin;
-    try { origin = new URL(req.headers.origin); } catch { socket.destroy(); return; }
-    if (origin.host !== req.headers.host) { socket.destroy(); return; }
-    wisp.routeRequest(req, socket, head);
-  }),
+server.on('upgrade', (_req, socket) => {
+  socket.end('HTTP/1.1 410 Gone\r\nConnection: close\r\n\r\n');
 });
-await app.register(fastifyStatic, { root: scramjetPath, prefix: '/scram/' });
-await app.register(fastifyStatic, { root: libcurlPath, prefix: '/libcurl/', decorateReply: false });
-await app.register(fastifyStatic, { root: baremuxPath, prefix: '/baremux/', decorateReply: false });
-app.get('/', (_req, reply) => reply.header('Cache-Control', 'no-store').sendFile('index.html', root));
-for (const file of ['app.js', 'sw.js', 'style.css', 'LICENSE']) {
-  app.get('/' + file, (_req, reply) => reply.header('Cache-Control', 'no-cache').sendFile(file, root));
-}
-app.get('/health', () => 'ok');
-app.get('/view', (_req, reply) => reply.redirect('/'));
-app.setNotFoundHandler((_req, reply) => reply.code(404).send('Page not found. Return to the homepage.'));
-await app.listen({ port: Number(process.env.PORT || 8080), host: process.env.HOST || '0.0.0.0' });
-console.log('Simple Proxy 2 is ready.');
-for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, async () => { await app.close(); process.exit(0); });
+server.listen(Number(process.env.PORT || 8083), process.env.HOST || '0.0.0.0', () => {
+  console.log('Vennela Farming is ready');
+});
